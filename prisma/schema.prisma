@@ -1,0 +1,189 @@
+// Prisma schema for SAAS-Bootstrap
+// Multi-tenant, organization-based SaaS on PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ----- Enums -----
+
+enum RoleKey {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+// Example of fine-grained permissions.
+// You can extend this as the domain grows.
+enum PermissionKey {
+  ORG_MANAGE_SETTINGS
+  ORG_MANAGE_MEMBERS
+
+  PROJECT_CREATE
+  PROJECT_READ
+  PROJECT_UPDATE
+  PROJECT_DELETE
+}
+
+// ----- Core Multi-Tenant Models -----
+
+model Organization {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String        @unique
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Audit fields (who created/updated the org)
+  createdById String?
+  updatedById String?
+
+  createdBy   User?         @relation("OrganizationsCreated", fields: [createdById], references: [id])
+  updatedBy   User?         @relation("OrganizationsUpdated", fields: [updatedById], references: [id])
+
+  memberships Membership[]
+  projects    Project[]
+
+  @@index([slug])
+}
+
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String
+
+  firstName    String?
+  lastName     String?
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Soft delete
+  deletedAt    DateTime?
+
+  memberships  Membership[]
+  refreshTokens RefreshToken[]
+
+  organizationsCreated Organization[] @relation("OrganizationsCreated")
+  organizationsUpdated Organization[] @relation("OrganizationsUpdated")
+  projectsCreated      Project[]      @relation("ProjectsCreated")
+  projectsUpdated       Project[]      @relation("ProjectsUpdated")
+
+  @@index([email])
+}
+
+// Join table between users and organizations
+// Captures org-scoped role for the user
+model Membership {
+  userId         String
+  organizationId String
+  roleId         Int
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  user           User         @relation(fields: [userId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  role           Role         @relation(fields: [roleId], references: [id])
+
+  @@id([userId, organizationId])
+  @@index([organizationId])
+  @@index([roleId])
+}
+
+// ----- Roles & Permissions -----
+
+model Role {
+  id          Int             @id @default(autoincrement())
+  key         RoleKey         @unique
+  name        String
+  description String?
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  memberships     Membership[]
+  rolePermissions RolePermission[]
+}
+
+model Permission {
+  id          Int             @id @default(autoincrement())
+  key         PermissionKey   @unique
+  description String?
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  rolePermissions RolePermission[]
+}
+
+// Explicit join table between roles and permissions
+model RolePermission {
+  roleId       Int
+  permissionId Int
+
+  createdAt    DateTime @default(now())
+
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+// ----- Example Domain: Projects (Org-scoped Resource) -----
+
+model Project {
+  id             String        @id @default(cuid())
+  organizationId String
+
+  name           String
+  description    String?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+
+  createdById    String?
+  updatedById    String?
+
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  createdBy      User?         @relation("ProjectsCreated", fields: [createdById], references: [id])
+  updatedBy      User?         @relation("ProjectsUpdated", fields: [updatedById], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, deletedAt])
+}
+
+// ----- Authentication (Refresh Tokens) -----
+
+model RefreshToken {
+  id             String   @id @default(cuid())
+  userId         String
+
+  // Store a hash of the token value, not the raw token
+  tokenHash      String   @unique
+
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+  revokedAt      DateTime?
+
+  // For rotation chains
+  replacedById   String?
+
+  user           User     @relation(fields: [userId], references: [id])
+  replacedBy     RefreshToken? @relation("RefreshTokenReplacements", fields: [replacedById], references: [id])
+  previousTokens RefreshToken[] @relation("RefreshTokenReplacements")
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}
+
