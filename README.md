@@ -122,23 +122,85 @@ Default values from `docker-compose.yml`:
 - Port: `5432`
 - Database: `saas_bootstrap`
 
+### NestJS Setup
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Generate Prisma Client:**
+   ```bash
+   npm run prisma:generate
+   ```
+
+3. **Start the development server:**
+   ```bash
+   npm run start:dev
+   ```
+
+   The application will be available at `http://localhost:3000`
+
+### Repository Pattern
+
+This project follows a layered architecture with repository pattern:
+
+- **Domain Layer** (`src/domain/repositories/`): Repository interfaces defining contracts
+- **Infrastructure Layer** (`src/infrastructure/repositories/`): Prisma-based implementations
+
+**Available Repositories:**
+- `UserRepository` - User management
+- `OrganizationRepository` - Organization management
+- `MembershipRepository` - User-Organization relationships
+- `RoleRepository` - Role management
+- `PermissionRepository` - Permission management
+- `RolePermissionRepository` - Role-Permission mappings
+- `ProjectRepository` - Project management (example domain)
+- `RefreshTokenRepository` - Refresh token management
+
+**Using Repositories in Services:**
+
+```typescript
+import { Injectable } from '@nestjs/common';
+import { UserRepository } from '@/infrastructure/repositories';
+
+@Injectable()
+export class UserService {
+  constructor(private readonly userRepository: UserRepository) {}
+
+  async findUserById(id: string) {
+    return this.userRepository.findById(id);
+  }
+}
+```
+
 ### Next Steps
 
-After setting up the database:
-1. Install project dependencies: `npm install` or `yarn install`
-2. Set up your NestJS application structure
-3. Configure authentication and authorization modules
-4. Start building your domain features
+After setting up the database and NestJS:
+1. Configure authentication and authorization modules
+2. Create application services (use cases)
+3. Build API controllers
+4. Implement organization context middleware
+5. Add validation and error handling
 
 ## Project Structure
 
 ```
 SAAS-Bootstrap/
-├── docs/              # Architecture and product documentation
-├── prisma/            # Prisma schema and migrations
-│   └── schema.prisma  # Database schema definition
-├── prisma.config.js   # Prisma 7 configuration (database URL)
-├── docker-compose.yml # PostgreSQL Docker configuration
-├── .nvmrc             # Node.js version specification
+├── docs/                      # Architecture and product documentation
+├── prisma/                    # Prisma schema and migrations
+│   ├── schema.prisma         # Database schema definition
+│   └── migrations/           # Database migrations
+├── src/                       # NestJS application source
+│   ├── domain/               # Domain layer (business logic)
+│   │   └── repositories/    # Repository interfaces
+│   ├── infrastructure/       # Infrastructure layer
+│   │   ├── prisma/          # Prisma service and module
+│   │   └── repositories/    # Repository implementations
+│   ├── app.module.ts        # Root application module
+│   └── main.ts              # Application entry point
+├── prisma.config.js          # Prisma 7 configuration (database URL)
+├── docker-compose.yml        # PostgreSQL Docker configuration
+├── .nvmrc                    # Node.js version specification
 └── README.md
 ```
