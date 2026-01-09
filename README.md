@@ -174,6 +174,39 @@ export class UserService {
 }
 ```
 
+### Logging
+
+The application includes structured logging with request ID propagation:
+
+- **Structured Logs**: All logs are output as JSON with consistent structure
+- **Request IDs**: Each request gets a unique ID that propagates through the stack
+- **Context Tracking**: Request context (userId, organizationId) is automatically included
+- **Error Handling**: Centralized exception filter logs all errors with proper context
+
+**Using the Logger:**
+
+```typescript
+import { Injectable } from '@nestjs/common';
+import { AppLogger } from '@/infrastructure/logging';
+
+@Injectable()
+export class UserService {
+  private readonly logger = new AppLogger(UserService.name);
+
+  async findUser(id: string) {
+    this.logger.log('Finding user', { userId: id });
+    // ... your code
+  }
+}
+```
+
+Request IDs are automatically:
+- Generated for each request (or read from `X-Request-Id` header)
+- Added to response headers
+- Included in all log messages
+
+See `src/infrastructure/logging/README.md` for detailed documentation.
+
 ### Next Steps
 
 After setting up the database and NestJS:
