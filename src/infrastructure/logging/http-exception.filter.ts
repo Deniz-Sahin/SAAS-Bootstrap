@@ -1,16 +1,10 @@
-import {
-  ExceptionFilter,
-  Catch,
-  ArgumentsHost,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AppLogger } from './logger.service';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
-  private readonly logger = new AppLogger(HttpExceptionFilter.name);
+  private readonly logger = new AppLogger();
 
   catch(exception: unknown, host: ArgumentsHost): void {
     const ctx = host.switchToHttp();
@@ -19,14 +13,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const requestId = (request as Request & { requestId?: string }).requestId;
 
     const status =
-      exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+      exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const message =
-      exception instanceof HttpException
-        ? exception.getResponse()
-        : 'Internal server error';
+      exception instanceof HttpException ? exception.getResponse() : 'Internal server error';
 
     const errorResponse = {
       statusCode: status,
@@ -34,9 +24,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       path: request.url,
       method: request.method,
       requestId,
-      ...(typeof message === 'string'
-        ? { message }
-        : { ...(message as Record<string, unknown>) }),
+      ...(typeof message === 'string' ? { message } : { ...(message as Record<string, unknown>) }),
     };
 
     // Log the error

@@ -8,73 +8,58 @@ export interface LogContext {
   [key: string]: unknown;
 }
 
-@Injectable({ scope: Scope.TRANSIENT })
+@Injectable({ scope: Scope.DEFAULT }) // ⬅️ IMPORTANT
 export class AppLogger implements LoggerService {
   private context?: string;
   private requestId?: string;
   private userId?: string;
   private organizationId?: string;
 
-  constructor(context?: string) {
-    this.context = context;
-  }
+  // 🚫 NO constructor arguments
+  constructor() {}
 
-  /**
-   * Set the request context for this logger instance
-   */
   setContext(context: {
     requestId?: string;
     userId?: string;
     organizationId?: string;
+    loggerContext?: string;
   }): void {
     this.requestId = context.requestId;
     this.userId = context.userId;
     this.organizationId = context.organizationId;
+
+    if (context.loggerContext) {
+      this.context = context.loggerContext;
+    }
   }
 
-  /**
-   * Build structured log message with context
-   */
   private buildMessage(message: string, context?: LogContext): string {
-    const logData: Record<string, unknown> = {
+    return JSON.stringify({
       message,
       ...(this.context && { context: this.context }),
       ...(this.requestId && { requestId: this.requestId }),
       ...(this.userId && { userId: this.userId }),
       ...(this.organizationId && { organizationId: this.organizationId }),
       ...context,
-    };
-
-    return JSON.stringify(logData);
+    });
   }
-
   log(message: string, context?: LogContext): void {
-    Logger.log(this.buildMessage(message, context), this.context);
+    console.log(this.buildMessage(message, context));
   }
 
   error(message: string, trace?: string, context?: LogContext): void {
-    const logData: Record<string, unknown> = {
-      message,
-      ...(this.context && { context: this.context }),
-      ...(this.requestId && { requestId: this.requestId }),
-      ...(this.userId && { userId: this.userId }),
-      ...(this.organizationId && { organizationId: this.organizationId }),
-      ...(trace && { trace }),
-      ...context,
-    };
-
-    Logger.error(JSON.stringify(logData), trace, this.context);
+    console.error(this.buildMessage(message, { ...context, trace }));
   }
 
   warn(message: string, context?: LogContext): void {
-    Logger.warn(this.buildMessage(message, context), this.context);
+    console.warn(this.buildMessage(message, context));
   }
 
   debug(message: string, context?: LogContext): void {
-    Logger.debug(this.buildMessage(message, context), this.context);
+    console.debug(this.buildMessage(message, context));
   }
 
   verbose(message: string, context?: LogContext): void {
-    Logger.verbose(this.buildMessage(message, context), this.context);
+    console.info(this.buildMessage(message, context));
   }
 }
